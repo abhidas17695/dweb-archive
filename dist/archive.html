@@ -24,9 +24,9 @@
     </style>
     <!-- Order of these bundle inclusions is important, objects should be loaded after transports as it adds Name lookup to DwebTransports-->
     <script type="text/javascript">localStorage.debug = "dweb-archive dweb-archive:* dweb-transports dweb-transports:* dweb-objects dweb-objects:*";</script>
-    <script type="text/javascript" src="dweb-transports-bundle.js"></script> <!--Direct transport-->
+<!--    <script type="text/javascript" src="dweb-transports-bundle.js"></script> Direct transport-->
     <!-- <script type="text/javascript" src="dweb-serviceworker-proxy-bundle.js"></script> <!-- Transport via Proxy -->
-    <script type="text/javascript" src="dweb-objects-bundle.js"></script>
+<!--    <script type="text/javascript" src="dweb-objects-bundle.js"></script>-->
     <script type="text/javascript" src="dweb-archive-bundle.js"></script>
 </head>
     <!-- TODO-DETAILS missing scripts, properties and links that appear before body tag on archive/details/commute etc -->
@@ -35,9 +35,35 @@
 <!--suppress HtmlUnknownAnchorTarget -->
 <a href="#maincontent" class="hidden-for-screen-readers">Skip to main content</a>
 <script>
+  async function loadBundles(){
+      const getBundle = (url,obj,name) => new Promise((resolve, reject) => {
+      if (obj) {
+        return resolve(obj)
+      }
+      const script = document.createElement('script')
+      var bundle;
+      script.onload = () => {
+        if(name == 'transport'){
+            bundle = DwebTransports;
+            console.log("Transports fallback");
+            resolve(bundle)
+        }else{
+            bundle = DwebObjects;
+            console.log("Objects fallback");
+            resolve(bundle)
+        }
+      };
+      script.onerror = reject;
+      script.src = url;
+      document.body.appendChild(script);
+    })
+    await getBundle('dweb-transports-bundle.js',window.DwebTransports,'transport').then(bundle => DwebTransports = bundle);
+    await getBundle('dweb-objects-bundle.js',window.DwebObjects,'object').then(bundle => DwebObjects = bundle);
+  }
+</script>
+<script>
     $(function(){ $('.navbar [data-toggle="tooltip"]').tooltip({}); });
-
-    async function main({query=undefined, sort=undefined, item=undefined, download=false}={}) {
+    async function main({query=undefined, sort=undefined, item=undefined, download=false }={}) {
         await DwebTransports.p_connect({statuselement: document.getElementById("dweb-status"), transports: searchparams.getAll("transport"), paused: searchparams.getAll("paused")});
         if (query) {
             // noinspection JSIgnoredPromiseFromCall
@@ -55,7 +81,6 @@
             Nav.nav_home();
         }
     }
-
 </script>
 <div id="nav-dweb"><span class="dweb-nav-left">DWeb</span>: <!--<span style="color:purple;">DWeb:</span>--><div id="dweb-status"></div><a href="https://docs.google.com/forms/d/e/1FAIpQLSe7pXiSLrmeLoKvlDi2wODcL3ro7D6LegPksb86jr5bCJa7Ig/viewform" target="_blank"><img src="https://dweb.archive.org/images/feedback.svg"/></a></div><!--End of standard network status and login panel-->
 
@@ -64,12 +89,13 @@
     var searchparams = new URL(window.location.href).searchParams;
     i = location.pathname.indexOf("/details/") || location.pathname.indexOf("/download/");
     // noinspection JSIgnoredPromiseFromCall
-    main({
+    loadBundles().then(function(resolve){
+        main({
         item: (i > -1) ? location.pathname.slice(i + 9) : searchparams.get("item"),
         query: searchparams.get("query"),
         sort: searchparams.get("sort"),
         download: (location.pathname.indexOf("/download/") > -1) || searchparams.get("download") || false
-    });
+    })});
 </script>
 
 </body>
